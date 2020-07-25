@@ -103,6 +103,7 @@ class Equation(Scene):
         probability_function_group = VGroup(probability_function, equals, probability_function_worded)
         probability_function_group.move_to(ORIGIN)
 
+        # Start with P(I|N) = probability_function_worded on the screen
         self.add(probability_function_group)
         self.wait()
 
@@ -125,6 +126,8 @@ class Equation(Scene):
         # Move the probability equation to where it's supposed to be when centered
         probability_equation.move_to(prob_worded_transform_target)
 
+        # Turn the probability_function_worded into the real function from the wiki
+        # and slide stuff around to be centered
         self.play(Transform(probability_function_worded, prob_worded_transform_target), MoveToTarget(probability_function), MoveToTarget(equals))
         self.remove(probability_function_worded)
         self.add(probability_equation)
@@ -138,12 +141,21 @@ class Equation(Scene):
         # so it can be in place for when we add the brackets
         probability_equation.generate_target().move_to(VGroup(equation[1], equation[2]))
 
+        # Move the probability_equation over to make room for the brackets
+        # and fade in the brackets and exponent
         self.play(MoveToTarget(probability_equation))
         self.play(FadeIn(equation[0]), FadeIn(equation[3]))
         self.remove(probability_equation)
         self.add(equation)
         self.wait()
 
+        # Create function f(x,N) and position it to where probability_function, P(I|N), is now
+        function = TexMobject(r"f(x,N)")
+        function.move_to(probability_function)
+
+        # Turn probability_function into function
+        self.play(Transform(probability_function, function))
+        self.wait()
 
 class Test(Scene):
     def construct(self):
