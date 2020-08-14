@@ -1,4 +1,4 @@
-from manimlib.imports import *
+from manim import *
 
 
 class Highlight(Transform):
@@ -141,7 +141,7 @@ class CumulativeFunctionScene(Scene):
             definition = self.definitions[letter]
             definition.set_color(self.definition_colors[letter])
             half_definition_size = len(self.definitions) / 2
-            align_side = LEFT_SIDE if index < half_definition_size else RIGHT_SIDE
+            align_side = config['left_side'] if index < half_definition_size else config['right_side']
             align_vector = LEFT if index < half_definition_size else RIGHT
             self.play(Write(definition))
             self.wait()
@@ -156,7 +156,7 @@ class CumulativeFunctionScene(Scene):
 
             self.play(definition.scale, .5,
                       definition.align_to, align_side, align_vector,
-                      definition.align_to, BOTTOM, DOWN,
+                      definition.align_to, config['bottom'], DOWN,
                       definition.shift, UP * definition_padding * (index % half_definition_size))
             self.wait()
 
