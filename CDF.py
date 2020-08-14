@@ -68,26 +68,29 @@ class CumulativeDistributionFunction(TexMobject):
         rhs = self[3:]
         zero = TexMobject("0")
         top_ineq = TexMobject("N", "<", "k")
-        bottom_ineq = TexMobject(r"N", "\geq", "k")
+        bottom_ineq = TexMobject("N", r"\geq", "k")
         top_ineq[0].set_color(N_color)
         top_ineq[2].set_color(k_color)
         bottom_ineq[0].set_color(N_color)
         bottom_ineq[2].set_color(k_color)
 
         # Align 0 and brace
-        zero.align_to(rhs, ORIGIN)
-        zero.shift(DOWN * 2)
+        zero.next_to(rhs, DOWN)
+        zero.shift(DOWN)
         rhs = VGroup(rhs, zero)
         brace = Brace(rhs, LEFT)
-        whole_thing = VGroup(lhs, brace, rhs)
 
         # Align ineqs
-        top_ineq.next_to(self, RIGHT)
+        top_ineq.next_to(self[3:], RIGHT)
         bottom_ineq.next_to(zero, RIGHT)
         bottom_ineq.align_to(top_ineq, LEFT)
         ineqs = VGroup(top_ineq, bottom_ineq)
 
-        whole_thing.add(ineqs)
+        top_group = VGroup(self[3:], top_ineq)
+        bottom_group = VGroup(zero, bottom_ineq)
+        rhs = VGroup(top_group, bottom_group)
+        whole_thing = VGroup(lhs, brace, rhs)
+
         return self, (Write(top_ineq),
                       Write(bottom_ineq),
                       Write(brace),

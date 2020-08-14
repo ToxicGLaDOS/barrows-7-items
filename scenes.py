@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from manimlib.imports import *
+from manim import *
 
 class Definitions(Scene):
     def construct(self):
@@ -156,22 +156,4 @@ class Equation(Scene):
         # Turn probability_function into function
         self.play(Transform(probability_function, function))
         self.wait()
-
-class Test(Scene):
-    def construct(self):
-        a = TexMobject("A")
-        a.shift(LEFT * 2)
-        b = TexMobject("B")
-        b.shift(RIGHT * 2)
-
-        self.play(Transform(a, b))
-
-
-        a.move_to([-3,3,0])
-        b.move_to([3,-3,0])
-        self.add(b)
-        self.wait()
-
-
-
 
