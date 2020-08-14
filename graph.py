@@ -64,6 +64,9 @@ class CDFGraph(AxisConfigurableGraphScene):
     def p(self, N):
         return 1/Decimal(450 - 58 * N)
 
+def align_label(label, dot):
+    label.move_to(dot)
+    label.shift(RIGHT * .5)
 
 class InverseCDFGraph(AxisConfigurableGraphScene):
     CONFIG = {
@@ -75,7 +78,7 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         "graph_origin": config['bottom'] + config['left_side'] + UP + RIGHT * 4,
         "axes_color": GREEN,
         "x_labeled_nums": range(0, 7 + 1),
-        "y_labeled_nums": [x * 1/10 for x in range(0,10 + 1)],
+        "y_labeled_nums": [x * 1/10 for x in range(0, 10 + 1)],
         "x_axis_config": {
 
         },
@@ -85,11 +88,13 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
             }
         }
     }
-    def construct(self):
+
+    def initialize(self):
         # Set Decimal precision
         getcontext().prec = 15
         self.setup_axes(animate=True)
 
+    def create_dots(self):
         self.dots = []
         self.dot_labels = []
         # List of the (x, y) coords where the dot belongs on the graph
@@ -97,23 +102,23 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         for k in range(0, 7 + 1):
             coord = [k, 1 - self.cdf(k)]
             self.dot_coords.append(coord)
+
             dot = Dot(self.coords_to_point(*coord))
-            # list() applied to a string turns it into a list of all the characters
-            # so this creates the super_precise version of the number where each character is it's own submobject
-            dot_label = TexMobject(*list(str(Decimal(1) - self.cdf(k, super_precise=True))))
-            dot_label.scale(.5)
-            dot_label.rotate(-np.pi/4, [0, 0, 1])
-            dot_label.move_to(dot)
-            dot_label.shift(RIGHT * .5)
-            self.dot_labels.append(dot_label)
             self.dots.append(dot)
 
+            dot_label = TexMobject(str(self.inverse_cdf(k, super_precise=True)))
+            dot_label.scale(.5)
+            dot_label.rotate(-np.pi / 4, [0, 0, 1])
+            align_label(dot_label, dot)
+            self.dot_labels.append(dot_label)
 
         self.play(ShowCreation(VGroup(*self.dots)))
         self.wait()
+
         self.play(Write(VGroup(*self.dot_labels)))
         self.wait()
 
+    def repeated_zoom(self):
         zoom_factor = 1
         zoom_label = TextMobject(str(zoom_factor), r"$\times$ zoom")
         zoom_label.move_to(self.x_axis.number_to_point(3.5))
@@ -133,6 +138,13 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         zoom_label_target.move_to(zoom_label)
         self.play(Transform(zoom_label, zoom_label_target))
         self.wait()
+
+    def construct(self):
+        self.initialize()
+        self.create_dots()
+        self.repeated_zoom()
+
+
 
     def scale_y_axis(self, scale_factor, num_decimal_places):
         # Construct a copy of self.y_axis with the labeled numbers scaled to scale_factor
@@ -166,9 +178,11 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
             dot_target = dot.generate_target()
             dot_target.move_to(self.coords_to_point_with_axes(coord[0], coord[1], self.x_axis, y_axis_copy))
             label_target = label.generate_target()
-            label_target.move_to(dot_target)
-            label_target.shift(RIGHT * .5)
-            animations.extend((MoveToTarget(dot), MoveToTarget(label)))
+            align_label(label_target, dot_target)
+            animations.extend(
+                              (MoveToTarget(dot),
+                              MoveToTarget(label))
+                             )
 
         return y_axis_copy, (ReplacementTransform(self.y_axis, y_axis_copy), *animations)
 
@@ -184,9 +198,14 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         else:
             return float(value)
 
+    def inverse_cdf(self, k, N=6, super_precise=False):
+        return 1 - self.cdf(k, N, super_precise=super_precise)
+
     def choose(self, n, r):
         f = math.factorial
         return f(n) // f(r) // f(n - r)
 
     def p(self, N):
         return 1/Decimal(450 - 58 * N)
+
+
