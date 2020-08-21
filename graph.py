@@ -5,65 +5,6 @@ import math
 from decimal import *
 from axis_graph_scene import AxisConfigurableGraphScene
 
-class CDFGraph(AxisConfigurableGraphScene):
-    CONFIG = {
-        "x_min": 0,
-        "x_max": 7,
-        "y_min": 0,
-        "y_max": 1.0,
-        "y_tick_frequency": 0.1,
-        "graph_origin": config['bottom'] + config['left_side'] + UP + RIGHT,
-        "function_color": RED,
-        "axes_color": GREEN,
-        "x_labeled_nums": range(0, 7 + 1),
-        "y_labeled_nums": [x * 1/10 for x in range(0,10 + 1)],
-        "x_axis_config": {
-
-        },
-        "y_axis_config": {
-            "decimal_number_config": {
-                "num_decimal_places": 1,
-            }
-        }
-    }
-    def construct(self):
-        # Set Decimal precision
-        getcontext().prec = 15
-        self.setup_axes(animate=True)
-
-        dots = []
-        dot_labels = []
-        for k in range(0, 7 + 1):
-            dot = Dot(self.coords_to_point(k, self.cdf(k)))
-            # list() applied to a string turns it into a list of all the characters
-            # so this creates the super_precise version of the number where each character is it's own submobject
-            dot_label = TexMobject(*list(str(self.cdf(k, super_precise=True))))
-            dot_label.scale(.5)
-            dot_label.rotate(-np.pi/4, [0, 0, 1])
-            dot_label.move_to(dot)
-            dot_label.shift(RIGHT * .5)
-            dot_labels.append(dot_label)
-            dots.append(dot)
-
-        self.play(ShowCreation(VGroup(*dots)))
-        self.wait()
-        self.play(Write(VGroup(*dot_labels)))
-        self.wait()
-
-    def cdf(self, k, N=6, super_precise=False):
-        value = sum([choose(N + 1, i) * self.p(N) ** i * (1 - self.p(N)) ** (N + 1 - i) for i in range(math.floor(k + 1))])
-        if super_precise:
-            return value
-        else:
-            return float(value)
-
-    def choose(self, n, r):
-        f = math.factorial
-        return f(n) // f(r) // f(n - r)
-
-    def p(self, N):
-        return 1/Decimal(450 - 58 * N)
-
 def align_label(label, dot):
     label.move_to(dot)
     label.shift(RIGHT * .5)
@@ -97,16 +38,13 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
     def create_dots(self):
         self.dots = []
         self.dot_labels = []
-        # List of the (x, y) coords where the dot belongs on the graph
-        self.dot_coords = []
         for k in range(0, 7 + 1):
-            coord = [k, 1 - self.cdf(k)]
-            self.dot_coords.append(coord)
+            coord = [k, self.cdf(k)]
 
             dot = Dot(self.coords_to_point(*coord))
             self.dots.append(dot)
 
-            dot_label = TexMobject(str(self.inverse_cdf(k, super_precise=True)))
+            dot_label = TexMobject(str(self.cdf(k, super_precise=True)))
             dot_label.scale(.5)
             dot_label.rotate(-np.pi / 4, [0, 0, 1])
             align_label(dot_label, dot)
@@ -117,6 +55,22 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
 
         self.play(Write(VGroup(*self.dot_labels)))
         self.wait()
+
+    def become_inverse_graph(self):
+        # List of the (x, y) coords where the dot belongs on the graph
+        self.dot_coords = []
+        animations = []
+        for index, (dot, label) in enumerate(zip(self.dots, self.dot_labels)):
+            coord = [index, self.inverse_cdf(index)]
+            self.dot_coords.append(coord)
+            dot_target = dot.generate_target()
+            dot_target.move_to(self.coords_to_point_with_axes(coord[0], coord[1], self.x_axis, self.y_axis))
+            label_target = TexMobject(str(self.inverse_cdf(index, super_precise=True)))
+            label_target.scale(.5)
+            label_target.rotate(-np.pi / 4, [0, 0, 1])
+            align_label(label_target, dot_target)
+            animations.extend((MoveToTarget(dot), Transform(label, label_target)))
+        self.play(*animations)
 
     def repeated_zoom(self):
         zoom_factor = 1
@@ -142,6 +96,7 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
     def construct(self):
         self.initialize()
         self.create_dots()
+        self.become_inverse_graph()
         self.repeated_zoom()
 
 
