@@ -4,10 +4,13 @@ from manim import config
 import math
 from decimal import *
 from axis_graph_scene import AxisConfigurableGraphScene
+from sci_formatter import formatter
+from shared_functions import *
 
 def align_label(label, dot):
     label.move_to(dot)
     label.shift(RIGHT * .5)
+
 
 class InverseCDFGraph(AxisConfigurableGraphScene):
     CONFIG = {
@@ -39,12 +42,12 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         self.dots = []
         self.dot_labels = []
         for k in range(0, 7 + 1):
-            coord = [k, self.cdf(k)]
+            coord = [k, cdf(k)]
 
             dot = Dot(self.coords_to_point(*coord))
             self.dots.append(dot)
 
-            dot_label = TexMobject(str(self.cdf(k, super_precise=True)))
+            dot_label = TexMobject(str(cdf(k, super_precise=True)))
             dot_label.scale(.5)
             dot_label.rotate(-np.pi / 4, [0, 0, 1])
             align_label(dot_label, dot)
@@ -61,16 +64,36 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         self.dot_coords = []
         animations = []
         for index, (dot, label) in enumerate(zip(self.dots, self.dot_labels)):
-            coord = [index, self.inverse_cdf(index)]
+            coord = [index, inverse_cdf(index)]
             self.dot_coords.append(coord)
             dot_target = dot.generate_target()
             dot_target.move_to(self.coords_to_point_with_axes(coord[0], coord[1], self.x_axis, self.y_axis))
-            label_target = TexMobject(str(self.inverse_cdf(index, super_precise=True)))
+            # If this is in scientific notation then we expand it to decimal
+            value = str(inverse_cdf(index, super_precise=True))
+            if formatter.is_sci_form(value):
+                value = formatter.build_number_string_from_sci_form(value)
+            label_target = TexMobject(value)
             label_target.scale(.5)
             label_target.rotate(-np.pi / 4, [0, 0, 1])
             align_label(label_target, dot_target)
             animations.extend((MoveToTarget(dot), Transform(label, label_target)))
         self.play(*animations)
+        self.wait()
+
+    def round_labels(self):
+        animations = []
+        for index, (dot, label) in enumerate(zip(self.dots, self.dot_labels)):
+            full_prec = inverse_cdf(index, super_precise=True)
+            value = f'{full_prec:.3g}'
+            if formatter.is_sci_form(value):
+                value = formatter.build_number_string_from_sci_form(value)
+            label_target = TexMobject(value)
+            label_target.scale(.5)
+            label_target.rotate(-np.pi / 4, [0, 0, 1])
+            align_label(label_target, dot)
+            animations.append(Transform(label, label_target))
+        self.play(*animations)
+        self.wait()
 
     def repeated_zoom(self):
         zoom_factor = 1
@@ -93,11 +116,70 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         self.play(Transform(zoom_label, zoom_label_target))
         self.wait()
 
+        self.play(FadeOut(zoom_label))
+        self.wait()
+
+    def scale_back_down(self):
+        scale_factor = 100000000000000
+        num_decimal_places = 1
+        animations = []
+        # Construct a copy of self.y_axis with the labeled numbers scaled to scale_factor
+        new_x_min = 0
+        new_x_max = self.y_axis.x_max * scale_factor
+        y_num_range = float(new_x_max - new_x_min)
+        space_unit_to_y = self.y_axis_height / y_num_range
+        labeled_numbers = [x * new_x_max / 10 for x in range(0, 11)]
+        y_axis_copy = NumberLine(x_max=new_x_max,
+                                 x_min=new_x_min,
+                                 unit_size=space_unit_to_y,
+                                 tick_frequency=new_x_max / 10,
+                                 numbers_with_elongated_ticks=labeled_numbers,
+                                 line_to_number_vect=LEFT,
+                                 label_direction=LEFT,
+                                 leftmost_tick=new_x_min,
+                                 decimal_number_config={
+                                     "num_decimal_places": num_decimal_places,
+                                 }
+                                 )
+        y_axis_copy.rotate(np.pi / 2)
+        y_axis_copy.shift(self.graph_origin - y_axis_copy.number_to_point(0))
+        y_axis_copy.match_style(self.y_axis)
+        y_axis_copy.add_numbers(*labeled_numbers)
+        y_axis_copy.add(self.y_axis_label_mob)
+
+        # Just move the offscreen ones
+        for (dot, label) in zip(self.dots[:6], self.dot_labels[:6]):
+            # Move dots to just above the screen because they're all so high up at this point
+            # that if we interpolated them to the correct spot then they would just appear to teleport here
+            dot.move_to([0, 8, 0])
+            align_label(label, dot)
+
+        for dot, label, coord in zip(self.dots, self.dot_labels, self.dot_coords):
+            dot_target = dot.generate_target()
+            label_target = label.generate_target()
+            point = self.coords_to_point_with_axes(coord[0], coord[1], self.x_axis, y_axis_copy)
+
+            dot_target.move_to(point)
+            align_label(label_target, dot_target)
+
+            animations.extend((MoveToTarget(dot), MoveToTarget(label)))
+
+        self.play(ReplacementTransform(self.y_axis, y_axis_copy), *animations)
+        self.wait()
+
+    def example_usage(self):
+        line = self.get_vertical_line_to_graph(1, self.get_graph(inverse_cdf))
+        self.play(ShowCreation(line))
+        self.wait()
+
     def construct(self):
         self.initialize()
         self.create_dots()
         self.become_inverse_graph()
+        self.round_labels()
         self.repeated_zoom()
+        self.scale_back_down()
+        self.example_usage()
 
 
 
@@ -136,7 +218,7 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
             align_label(label_target, dot_target)
             animations.extend(
                               (MoveToTarget(dot),
-                              MoveToTarget(label))
+                               MoveToTarget(label))
                              )
 
         return y_axis_copy, (ReplacementTransform(self.y_axis, y_axis_copy), *animations)
@@ -145,22 +227,5 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         result = x_axis.number_to_point(x)[0] * RIGHT
         result += y_axis.number_to_point(y)[1] * UP
         return result
-
-    def cdf(self, k, N=6, super_precise=False):
-        value = sum([choose(N + 1, i) * self.p(N) ** i * (1 - self.p(N)) ** (N + 1 - i) for i in range(math.floor(k + 1))])
-        if super_precise:
-            return value
-        else:
-            return float(value)
-
-    def inverse_cdf(self, k, N=6, super_precise=False):
-        return 1 - self.cdf(k, N, super_precise=super_precise)
-
-    def choose(self, n, r):
-        f = math.factorial
-        return f(n) // f(r) // f(n - r)
-
-    def p(self, N):
-        return 1/Decimal(450 - 58 * N)
 
 
