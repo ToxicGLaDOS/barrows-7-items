@@ -297,9 +297,18 @@ class InverseCDFGraph(AxisConfigurableGraphScene):
         self.play(Transform(drop_chance_7, drop_chance_7_target))
         self.wait()
 
+        self.play(FadeOut(drop_chance_7))
+
 
         shift_graph_animations = self.shift_graph((3.3, 0, 0))
         self.play(*shift_graph_animations)
+        self.wait()
+
+        animations = []
+        for dot, label in zip(self.dots, self.dot_labels):
+            animations.extend((FadeOut(dot), FadeOut(label)))
+
+        self.play(FadeOut(self.x_axis), FadeOut(self.y_axis), *animations)
         self.wait()
 
     def construct(self):
